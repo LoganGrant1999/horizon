@@ -1,0 +1,155 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL")
+}
+
+enum BodyRegion {
+  HEAD
+  NECK
+  CHEST
+  HEART
+  LUNGS
+  ABDOMEN
+  LOW_BACK
+  UPPER_BACK
+  LEFT_ARM
+  RIGHT_ARM
+  LEFT_LEG
+  RIGHT_LEG
+  SKIN
+  OTHER
+}
+
+enum ConditionStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum SymptomCategory {
+  SYMPTOM
+  VITAL
+  ACTIVITY
+  NOTE
+}
+
+enum ParseStatus {
+  PENDING
+  PARSED
+  ERROR
+}
+
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  passwordHash    String?
+  displayName     String?
+  googleId        String?         @unique
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  sessions        Session[]
+  conditions      Condition[]
+  symptomEntries  SymptomEntry[]
+  journalEntries  JournalEntry[]
+  medications     Medication[]
+  reports         Report[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Condition {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?          @db.Text
+  bodyRegion  BodyRegion
+  onsetDate   DateTime?
+  status      ConditionStatus  @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model SymptomEntry {
+  id           String           @id @default(cuid())
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bodyRegion   BodyRegion
+  title        String
+  notes        String?          @db.Text
+  severity     Int?             // 1-10 scale
+  startedAt    DateTime?
+  endedAt      DateTime?
+  tags         String[]
+  category     SymptomCategory  @default(SYMPTOM)
+  vitalsJson   Json?
+  activityJson Json?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([userId])
+  @@index([userId, createdAt])
+  @@index([userId, bodyRegion])
+}
+
+model JournalEntry {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rawText     String       @db.Text
+  parsedAt    DateTime?
+  parseStatus ParseStatus  @default(PENDING)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([userId])
+  @@index([userId, parseStatus])
+  @@index([userId, createdAt])
+}
+
+model Medication {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  dosage     String?
+  frequency  String?
+  startedAt  DateTime?
+  stoppedAt  DateTime?
+  photoKey   String?   // S3 key
+  notes      String?   @db.Text
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([userId, startedAt])
+}
+
+model Report {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromDate  DateTime
+  toDate    DateTime
+  pdfKey    String   // S3 key
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, createdAt])
+}

@@ -1,0 +1,83 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Serif+Display:ital@0;1&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+}
+
+@layer base {
+  :root {
+    /* Backgrounds */
+    --background: 0 0% 98%; /* Light warm gray */
+    --foreground: 218 50% 8%; /* #0B1321 - Text primary */
+
+    /* Cards & Surfaces */
+    --card: 0 0% 100%; /* Pure white */
+    --card-foreground: 218 50% 8%;
+
+    /* Primary - Teal #00A7A0 */
+    --primary: 177 100% 33%;
+    --primary-foreground: 0 0% 100%;
+    --primary-600: 177 100% 28%; /* #008C86 hover */
+
+    /* Secondary - Light surface */
+    --secondary: 210 20% 96%;
+    --secondary-foreground: 218 50% 8%;
+
+    /* Muted */
+    --muted: 210 15% 95%;
+    --muted-foreground: 222 10% 40%; /* #5B6270 */
+
+    /* Accent - Peach & Periwinkle */
+    --accent: 177 100% 33%; /* Default to primary */
+    --accent-foreground: 0 0% 100%;
+    --accent-peach: 33 100% 80%; /* #FFD29D */
+    --accent-periwinkle: 227 85% 68%; /* #6B8AF2 */
+
+    /* Semantic Colors */
+    --success: 142 71% 45%; /* #22C55E */
+    --warning: 38 92% 50%; /* #F59E0B */
+    --info: 199 89% 48%; /* #0EA5E9 */
+    --danger: 4 90% 58%; /* #EF4444 */
+
+    /* Destructive */
+    --destructive: 4 90% 58%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders & Inputs */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 177 100% 33%;
+
+    /* Radius */
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
