@@ -5,6 +5,7 @@ import { BodyHeatmap } from '@/components/BodyHeatmap';
 import { Toast } from '@/components/Toast';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import ReactMarkdown from 'react-markdown';
 
 interface Report {
   id: string;
@@ -281,8 +282,17 @@ export default function ReportsPage() {
               disabled={aiReportLoading}
               className="h-11 min-w-[44px]"
             >
-              <Sparkles className="h-4 w-4 mr-2" />
-              {aiReportLoading ? 'Generating...' : 'Generate AI Summary'}
+              {aiReportLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Generate AI Summary
+                </>
+              )}
             </Button>
           </div>
 
@@ -292,13 +302,20 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {aiReport && (
+          {aiReportLoading && (
+            <div className="bg-white rounded-lg p-12 border border-border">
+              <div className="flex flex-col items-center justify-center gap-4">
+                <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                <p className="text-sm text-muted-foreground">Analyzing your health data with AI...</p>
+              </div>
+            </div>
+          )}
+
+          {aiReport && !aiReportLoading && (
             <div className="space-y-3">
               <div ref={aiReportPdfRef} className="bg-white rounded-lg p-6 border border-border">
-                <div className="prose prose-sm max-w-none">
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                    {aiReport}
-                  </div>
+                <div className="prose prose-sm max-w-none text-foreground [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mt-4 [&>h3]:mb-2 [&>h4]:text-base [&>h4]:font-semibold [&>h4]:mt-3 [&>h4]:mb-2 [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:mb-3 [&>li]:mb-1 [&_strong]:font-semibold">
+                  <ReactMarkdown>{aiReport}</ReactMarkdown>
                 </div>
               </div>
               <Button

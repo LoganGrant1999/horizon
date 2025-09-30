@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@health-heatmap/ui';
-import { Sunrise, TrendingUp, Calendar, Sparkles, Heart } from 'lucide-react';
+import { TrendingUp, Calendar, Sparkles, Heart } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -10,7 +10,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sunrise className="h-8 w-8 text-primary" />
+              <img src="/logo.png" alt="Horizon" className="h-8 w-8" />
               <span className="text-xl font-serif font-bold text-foreground">Horizon</span>
             </div>
             <Link to="/login">

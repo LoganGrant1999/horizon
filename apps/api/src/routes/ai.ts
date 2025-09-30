@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { db, users, sessions, journalEntries, symptomEntries, symptoms, conditions, medications, vitals } from '../db';
+import { db, users, sessions, journalEntries, symptomEntries, conditions, medications } from '../db';
 import { eq, and, desc } from 'drizzle-orm';
 import { getOpenAI, analyzeSymptoms, generateHealthReport } from '../lib/openai';
 
@@ -195,12 +195,12 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
     if (!user) return;
 
     try {
-      // Get recent symptoms
+      // Get recent symptom entries
       const recentSymptoms = await db
         .select()
-        .from(symptoms)
-        .where(eq(symptoms.userId, user.id))
-        .orderBy(desc(symptoms.startedAt))
+        .from(symptomEntries)
+        .where(eq(symptomEntries.userId, user.id))
+        .orderBy(desc(symptomEntries.createdAt))
         .limit(20);
 
       if (recentSymptoms.length === 0) {
@@ -226,18 +226,16 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
     try {
       // Gather all health data
-      const [symptomsData, conditionsData, medicationsData, vitalsData] = await Promise.all([
-        db.select().from(symptoms).where(eq(symptoms.userId, user.id)).orderBy(desc(symptoms.startedAt)).limit(30),
+      const [symptomsData, conditionsData, medicationsData] = await Promise.all([
+        db.select().from(symptomEntries).where(eq(symptomEntries.userId, user.id)).orderBy(desc(symptomEntries.createdAt)).limit(30),
         db.select().from(conditions).where(eq(conditions.userId, user.id)),
         db.select().from(medications).where(eq(medications.userId, user.id)),
-        db.select().from(vitals).where(eq(vitals.userId, user.id)).orderBy(desc(vitals.recordedAt)).limit(10),
       ]);
 
       const report = await generateHealthReport({
         symptoms: symptomsData,
         conditions: conditionsData,
         medications: medicationsData,
-        vitals: vitalsData,
       });
 
       return { report };

@@ -6,7 +6,8 @@ import { ReminderCard } from '@/components/ReminderCard';
 import { Toast } from '@/components/Toast';
 import { VitalsChart, SymptomFrequencyChart, ActivityChart } from '@/components/HealthCharts';
 import { Button } from '@health-heatmap/ui';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 interface RegionData {
   region: string;
@@ -255,8 +256,17 @@ export default function DashboardPage() {
             disabled={aiLoading || weekSummary.symptomCount === 0}
             className="h-11 min-w-[44px]"
           >
-            <Sparkles className="h-4 w-4 mr-2" />
-            {aiLoading ? 'Analyzing...' : 'Analyze Symptoms'}
+            {aiLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4 mr-2" />
+                Analyze Symptoms
+              </>
+            )}
           </Button>
         </div>
 
@@ -266,16 +276,23 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {aiInsights && (
+        {aiLoading && (
+          <div className="bg-gradient-to-br from-primary/5 to-accent-periwinkle/10 rounded-lg p-12 border border-primary/20">
+            <div className="flex flex-col items-center justify-center gap-4">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground">Analyzing your health data with AI...</p>
+            </div>
+          </div>
+        )}
+
+        {aiInsights && !aiLoading && (
           <div className="bg-gradient-to-br from-primary/5 to-accent-periwinkle/10 rounded-lg p-6 border border-primary/20">
             <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Your Health Patterns
             </h3>
-            <div className="prose prose-sm max-w-none">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                {aiInsights}
-              </p>
+            <div className="prose prose-sm max-w-none text-foreground [&>h3]:text-lg [&>h3]:font-semibold [&>h3]:mt-4 [&>h3]:mb-2 [&>h4]:text-base [&>h4]:font-semibold [&>h4]:mt-3 [&>h4]:mb-2 [&>p]:mb-3 [&>ul]:list-disc [&>ul]:ml-6 [&>ul]:mb-3 [&>li]:mb-1 [&_strong]:font-semibold">
+              <ReactMarkdown>{aiInsights}</ReactMarkdown>
             </div>
           </div>
         )}

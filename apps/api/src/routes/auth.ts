@@ -5,10 +5,8 @@ import {
   db,
   users,
   sessions,
-  symptoms,
   conditions,
   medications,
-  vitals,
   journalEntries,
   symptomEntries,
 } from '../db';
@@ -274,13 +272,11 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = result[0].userId;
 
     // Gather all user data
-    const [userData, symptomsData, conditionsData, medicationsData, vitalsData, journalData, symptomEntriesData] =
+    const [userData, conditionsData, medicationsData, journalData, symptomEntriesData] =
       await Promise.all([
         db.select().from(users).where(eq(users.id, userId)).limit(1),
-        db.select().from(symptoms).where(eq(symptoms.userId, userId)),
         db.select().from(conditions).where(eq(conditions.userId, userId)),
         db.select().from(medications).where(eq(medications.userId, userId)),
-        db.select().from(vitals).where(eq(vitals.userId, userId)),
         db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
         db.select().from(symptomEntries).where(eq(symptomEntries.userId, userId)),
       ]);
@@ -295,10 +291,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
             createdAt: userData[0].createdAt,
           }
         : null,
-      symptoms: symptomsData,
       conditions: conditionsData,
       medications: medicationsData,
-      vitals: vitalsData,
       journalEntries: journalData,
       symptomEntries: symptomEntriesData,
     };

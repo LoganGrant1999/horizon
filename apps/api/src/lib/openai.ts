@@ -63,23 +63,19 @@ export async function generateHealthReport(data: {
   symptoms: any[];
   conditions: any[];
   medications: any[];
-  vitals: any[];
 }): Promise<string> {
-  const { symptoms, conditions, medications, vitals } = data;
+  const { symptoms, conditions, medications } = data;
 
   const prompt = `Generate a comprehensive health summary report based on the following data:
 
 CURRENT CONDITIONS:
-${conditions.map((c) => `- ${c.name} (Since: ${c.diagnosedAt || 'Unknown'})`).join('\n') || 'None recorded'}
+${conditions.map((c) => `- ${c.name} (Status: ${c.status})`).join('\n') || 'None recorded'}
 
 MEDICATIONS:
-${medications.map((m) => `- ${m.name} (${m.dosage})`).join('\n') || 'None recorded'}
+${medications.map((m) => `- ${m.name} ${m.dosage ? `(${m.dosage})` : ''}`).join('\n') || 'None recorded'}
 
 RECENT SYMPTOMS (Last 30 days):
-${symptoms.slice(0, 10).map((s) => `- ${s.title} (Severity: ${s.severity}/10)`).join('\n') || 'None recorded'}
-
-RECENT VITALS:
-${vitals.slice(0, 5).map((v) => `- ${v.type}: ${v.value} ${v.unit || ''}`).join('\n') || 'None recorded'}
+${symptoms.slice(0, 10).map((s) => `- ${s.title} (Severity: ${s.severity || 'N/A'}/10, Region: ${s.bodyRegion})`).join('\n') || 'None recorded'}
 
 Please provide:
 1. Overall health summary

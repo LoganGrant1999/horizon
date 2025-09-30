@@ -29,25 +29,6 @@ export default function WelcomeStep({ data, updateData }: WelcomeStepProps) {
         </p>
       </div>
 
-      <div className="max-w-md mx-auto space-y-4">
-        <div className="bg-accent-peach/10 border-2 border-accent-peach/30 rounded-xl p-6">
-          <label className="flex items-start gap-4 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={data.importDemo}
-              onChange={(e) => updateData({ importDemo: e.target.checked })}
-              className="mt-1 w-5 h-5 rounded border-2 border-primary text-primary focus:ring-2 focus:ring-primary"
-            />
-            <div className="flex-1 text-left">
-              <p className="font-semibold text-foreground mb-1">Load Sample Profile</p>
-              <p className="text-sm text-muted-foreground">
-                Perfect for demos! Includes AFib and Migraine conditions, 6 journal entries, vitals, activities, medications with photos, and a pre-generated report. You can remove these anytime.
-              </p>
-            </div>
-          </label>
-        </div>
-      </div>
-
       <div className="pt-4">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted/50 text-sm text-muted-foreground">
           <span>📊</span>

@@ -2,8 +2,6 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
-import rateLimit from '@fastify/rate-limit';
-import helmet from '@fastify/helmet';
 import { initSentry, Sentry } from './lib/sentry';
 import { config } from './config';
 import { authRoutes } from './routes/auth';
@@ -41,22 +39,6 @@ const fastify = Fastify({
 async function start() {
   try {
     // Register security plugins
-    await fastify.register(helmet, {
-      contentSecurityPolicy: false, // Allow inline scripts for development
-    });
-
-    await fastify.register(rateLimit, {
-      max: 100, // Maximum 100 requests
-      timeWindow: '1 minute', // Per minute
-      errorResponseBuilder: function (request, context) {
-        return {
-          error: 'Too Many Requests',
-          message: `Rate limit exceeded. Only ${context.max} requests per ${context.after} allowed.`,
-          expiresIn: context.ttl,
-        };
-      },
-    });
-
     await fastify.register(cors, {
       origin: config.nodeEnv === 'production'
         ? [/^https:\/\/.*\.yourdomain\.com$/, config.webUrl]

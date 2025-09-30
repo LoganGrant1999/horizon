@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node';
-import { ProfilingIntegration } from '@sentry/profiling-node';
 import { config } from '../config';
 
 export function initSentry() {
@@ -14,10 +13,6 @@ export function initSentry() {
     dsn: SENTRY_DSN,
     environment: config.nodeEnv,
     tracesSampleRate: config.nodeEnv === 'production' ? 0.1 : 1.0,
-    profilesSampleRate: config.nodeEnv === 'production' ? 0.1 : 1.0,
-    integrations: [
-      new ProfilingIntegration(),
-    ],
     beforeSend(event, hint) {
       // Don't send events in development unless explicitly enabled
       if (config.nodeEnv === 'development' && !process.env.SENTRY_DEV_ENABLED) {
