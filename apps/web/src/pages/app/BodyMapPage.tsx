@@ -198,7 +198,7 @@ export default function BodyMapPage() {
               title="No symptoms logged yet"
               description="Start by clicking on a body region to add your first symptom"
               action={
-                <Button onClick={() => navigate('/app/journal')}>
+                <Button onClick={() => navigate('/app/journal')} className="h-11 min-w-[44px]">
                   <Activity className="h-4 w-4 mr-2" />
                   Or add via Journal
                 </Button>

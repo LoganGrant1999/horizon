@@ -2,8 +2,14 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import multipart from '@fastify/multipart';
+import rateLimit from '@fastify/rate-limit';
+import helmet from '@fastify/helmet';
+import { initSentry, Sentry } from './lib/sentry';
 import { config } from './config';
 import { authRoutes } from './routes/auth';
+
+// Initialize Sentry before anything else
+initSentry();
 // import { entryRoutes } from './routes/entries'; // No Entry table exists
 import { healthRoutes } from './routes/health';
 import { onboardingRoutes } from './routes/onboarding';
@@ -34,9 +40,27 @@ const fastify = Fastify({
 
 async function start() {
   try {
-    // Register plugins
+    // Register security plugins
+    await fastify.register(helmet, {
+      contentSecurityPolicy: false, // Allow inline scripts for development
+    });
+
+    await fastify.register(rateLimit, {
+      max: 100, // Maximum 100 requests
+      timeWindow: '1 minute', // Per minute
+      errorResponseBuilder: function (request, context) {
+        return {
+          error: 'Too Many Requests',
+          message: `Rate limit exceeded. Only ${context.max} requests per ${context.after} allowed.`,
+          expiresIn: context.ttl,
+        };
+      },
+    });
+
     await fastify.register(cors, {
-      origin: config.webUrl,
+      origin: config.nodeEnv === 'production'
+        ? [/^https:\/\/.*\.yourdomain\.com$/, config.webUrl]
+        : [/localhost/, /127\.0\.0\.1/],
       credentials: true,
     });
 
@@ -57,10 +81,32 @@ async function start() {
     await fastify.register(medicationsRoutes, { prefix: '/api/medications' });
     await fastify.register(reportsRoutes, { prefix: '/api/reports' });
 
+    // Error handler with Sentry
+    fastify.setErrorHandler((error, request, reply) => {
+      // Log to Sentry
+      Sentry.captureException(error, {
+        extra: {
+          url: request.url,
+          method: request.method,
+          headers: request.headers,
+        },
+      });
+
+      // Log to console
+      fastify.log.error(error);
+
+      // Send response
+      reply.status(error.statusCode || 500).send({
+        error: error.name || 'Internal Server Error',
+        message: config.nodeEnv === 'production' ? 'An error occurred' : error.message,
+      });
+    });
+
     // Start server
     await fastify.listen({ port: config.port, host: '0.0.0.0' });
     fastify.log.info(`Server listening on http://0.0.0.0:${config.port}`);
   } catch (err) {
+    Sentry.captureException(err);
     fastify.log.error(err);
     process.exit(1);
   }

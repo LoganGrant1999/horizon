@@ -25,6 +25,9 @@
     "npm": ">=10.0.0"
   },
   "dependencies": {
-    "openai": "^5.23.2"
+    "html2canvas": "^1.4.1",
+    "jspdf": "^3.0.3",
+    "openai": "^5.23.2",
+    "recharts": "^3.2.1"
   }
 }

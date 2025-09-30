@@ -1,7 +1,17 @@
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { db, users, sessions } from '../db';
+import {
+  db,
+  users,
+  sessions,
+  symptoms,
+  conditions,
+  medications,
+  vitals,
+  journalEntries,
+  symptomEntries,
+} from '../db';
 import { hashPassword, verifyPassword } from '../lib/auth';
 import { config } from '../config';
 import { randomUUID } from 'crypto';
@@ -15,6 +25,15 @@ const registerSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
+});
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string(),
+  newPassword: z.string().min(8),
+});
+
+const updateProfileSchema = z.object({
+  displayName: z.string().optional(),
 });
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
@@ -149,5 +168,174 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         createdAt: result[0].userCreatedAt,
       },
     };
+  });
+
+  // Update profile
+  fastify.patch('/profile', async (request, reply) => {
+    const sessionId = request.cookies.sessionId;
+    if (!sessionId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const result = await db
+      .select({ userId: users.id })
+      .from(sessions)
+      .leftJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
+    if (result.length === 0 || !result[0].userId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const userId = result[0].userId;
+    const body = updateProfileSchema.parse(request.body);
+
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        displayName: body.displayName,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning({
+        id: users.id,
+        email: users.email,
+        displayName: users.displayName,
+      });
+
+    return { user: updatedUser };
+  });
+
+  // Change password
+  fastify.post('/change-password', async (request, reply) => {
+    const sessionId = request.cookies.sessionId;
+    if (!sessionId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const result = await db
+      .select({
+        userId: users.id,
+        passwordHash: users.passwordHash,
+      })
+      .from(sessions)
+      .leftJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
+    if (result.length === 0 || !result[0].userId || !result[0].passwordHash) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const userId = result[0].userId;
+    const passwordHash = result[0].passwordHash;
+    const body = changePasswordSchema.parse(request.body);
+
+    // Verify current password
+    const valid = await verifyPassword(body.currentPassword, passwordHash);
+    if (!valid) {
+      return reply.code(400).send({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(body.newPassword);
+
+    // Update password
+    await db
+      .update(users)
+      .set({
+        passwordHash: newPasswordHash,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+
+    return { success: true };
+  });
+
+  // Export all data
+  fastify.get('/export', async (request, reply) => {
+    const sessionId = request.cookies.sessionId;
+    if (!sessionId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const result = await db
+      .select({ userId: users.id, userEmail: users.email })
+      .from(sessions)
+      .leftJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
+    if (result.length === 0 || !result[0].userId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const userId = result[0].userId;
+
+    // Gather all user data
+    const [userData, symptomsData, conditionsData, medicationsData, vitalsData, journalData, symptomEntriesData] =
+      await Promise.all([
+        db.select().from(users).where(eq(users.id, userId)).limit(1),
+        db.select().from(symptoms).where(eq(symptoms.userId, userId)),
+        db.select().from(conditions).where(eq(conditions.userId, userId)),
+        db.select().from(medications).where(eq(medications.userId, userId)),
+        db.select().from(vitals).where(eq(vitals.userId, userId)),
+        db.select().from(journalEntries).where(eq(journalEntries.userId, userId)),
+        db.select().from(symptomEntries).where(eq(symptomEntries.userId, userId)),
+      ]);
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      user: userData[0]
+        ? {
+            id: userData[0].id,
+            email: userData[0].email,
+            displayName: userData[0].displayName,
+            createdAt: userData[0].createdAt,
+          }
+        : null,
+      symptoms: symptomsData,
+      conditions: conditionsData,
+      medications: medicationsData,
+      vitals: vitalsData,
+      journalEntries: journalData,
+      symptomEntries: symptomEntriesData,
+    };
+
+    // Set headers for file download
+    reply.header('Content-Type', 'application/json');
+    reply.header('Content-Disposition', `attachment; filename="horizon-data-export-${Date.now()}.json"`);
+
+    return exportData;
+  });
+
+  // Delete account
+  fastify.delete('/account', async (request, reply) => {
+    const sessionId = request.cookies.sessionId;
+    if (!sessionId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const result = await db
+      .select({ userId: users.id })
+      .from(sessions)
+      .leftJoin(users, eq(sessions.userId, users.id))
+      .where(eq(sessions.id, sessionId))
+      .limit(1);
+
+    if (result.length === 0 || !result[0].userId) {
+      return reply.code(401).send({ error: 'Not authenticated' });
+    }
+
+    const userId = result[0].userId;
+
+    // Delete user (cascade will handle related data)
+    await db.delete(users).where(eq(users.id, userId));
+
+    // Clear session
+    reply.clearCookie('sessionId', { path: '/' });
+
+    return { success: true };
   });
 };

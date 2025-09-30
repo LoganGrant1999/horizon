@@ -121,7 +121,7 @@ export default function PrescriptionsPage() {
                 Track your medications with photos and dosage information
               </p>
             </div>
-            <Button onClick={() => setShowAddModal(true)}>
+            <Button onClick={() => setShowAddModal(true)} className="h-11 min-w-[44px]">
               <Plus className="h-4 w-4 mr-2" />
               Add Medication
             </Button>
@@ -131,7 +131,7 @@ export default function PrescriptionsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setFilterActive(false)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 h-11 min-w-[44px] rounded-lg text-sm font-medium transition-colors ${
                 !filterActive
                   ? 'bg-primary text-white'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -141,7 +141,7 @@ export default function PrescriptionsPage() {
             </button>
             <button
               onClick={() => setFilterActive(true)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-4 h-11 min-w-[44px] rounded-lg text-sm font-medium transition-colors ${
                 filterActive
                   ? 'bg-primary text-white'
                   : 'bg-muted text-muted-foreground hover:bg-muted/80'
@@ -158,7 +158,7 @@ export default function PrescriptionsPage() {
               title="No medications yet"
               description="Add your first medication to start tracking dosages, schedules, and photos"
               action={
-                <Button onClick={() => setShowAddModal(true)}>
+                <Button onClick={() => setShowAddModal(true)} className="h-11 min-w-[44px]">
                   <Plus className="h-4 w-4 mr-2" />
                   Add Medication
                 </Button>

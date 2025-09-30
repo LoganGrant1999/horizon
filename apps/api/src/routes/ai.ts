@@ -249,4 +249,44 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
   });
+
+  // Custom AI report endpoint
+  fastify.post('/report', async (request, reply) => {
+    const user = await authenticate(request, reply);
+    if (!user) return;
+
+    const body = z.object({
+      text: z.string().min(1),
+      instruction: z.string().min(1),
+    }).parse(request.body);
+
+    try {
+      const openai = getOpenAI();
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a helpful medical assistant. Help users understand medical information in simple terms. Always remind users that this is not medical advice and they should consult their healthcare provider for medical guidance.`,
+          },
+          {
+            role: 'user',
+            content: `${body.instruction}\n\nText: ${body.text}`,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      const result = completion.choices[0]?.message?.content || '';
+
+      return { result };
+    } catch (error: any) {
+      fastify.log.error('Custom AI report failed:', error);
+      return reply.code(500).send({
+        error: 'Report generation failed',
+        message: error.message || 'Unknown error',
+      });
+    }
+  });
 };

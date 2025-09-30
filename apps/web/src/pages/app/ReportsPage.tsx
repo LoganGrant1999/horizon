@@ -1,7 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { EmptyState, Button, Card } from '@health-heatmap/ui';
-import { FileText, Download, Calendar, Loader2, Trash2 } from 'lucide-react';
+import { FileText, Download, Calendar, Loader2, Trash2, Sparkles } from 'lucide-react';
 import { BodyHeatmap } from '@/components/BodyHeatmap';
+import { Toast } from '@/components/Toast';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 interface Report {
   id: string;
@@ -16,11 +19,34 @@ interface RegionData {
   count: number;
 }
 
+const PROMPTS = {
+  translate: "Translate this into simple English.",
+  questions: "List three simple questions to ask my doctor about this.",
+  sidefx: "Summarize the side effects I should be aware of."
+} as const;
+
+type PromptKey = keyof typeof PROMPTS;
+
 export default function ReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [regionData, setRegionData] = useState<RegionData[]>([]);
+  const [aiReportLoading, setAiReportLoading] = useState(false);
+  const [aiReport, setAiReport] = useState<string | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Custom AI prompt state
+  const [promptMode, setPromptMode] = useState<PromptKey>('translate');
+  const [promptInput, setPromptInput] = useState('');
+  const [promptLoading, setPromptLoading] = useState(false);
+  const [promptOutput, setPromptOutput] = useState<string | null>(null);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // PDF export refs
+  const aiReportPdfRef = useRef<HTMLDivElement>(null);
+  const customPromptPdfRef = useRef<HTMLDivElement>(null);
 
   // Date range state (default last 30 days)
   const [startDate, setStartDate] = useState(() => {
@@ -133,6 +159,79 @@ export default function ReportsPage() {
     }
   };
 
+  const handleGenerateAIReport = async () => {
+    setAiReportLoading(true);
+    setAiError(null);
+    try {
+      const res = await fetch('/api/ai/generate-report', {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || 'Report generation failed');
+      }
+
+      const data = await res.json();
+      setAiReport(data.report ?? 'No report generated.');
+    } catch (e: any) {
+      setAiError(e.message ?? 'Something went wrong');
+    } finally {
+      setAiReportLoading(false);
+    }
+  };
+
+  const handleRunCustomPrompt = async () => {
+    setPromptLoading(true);
+    setPromptOutput(null);
+    try {
+      const res = await fetch('/api/ai/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: promptInput,
+          instruction: PROMPTS[promptMode],
+        }),
+        credentials: 'include',
+      });
+
+      if (!res.ok) {
+        setToastMessage('Report failed');
+        setShowToast(true);
+        return;
+      }
+
+      const data = await res.json();
+      setPromptOutput(data.result ?? '');
+      setToastMessage('Report ready');
+      setShowToast(true);
+    } catch (error) {
+      setToastMessage('Report failed');
+      setShowToast(true);
+    } finally {
+      setPromptLoading(false);
+    }
+  };
+
+  const exportToPDF = async (ref: React.RefObject<HTMLDivElement>, filename: string) => {
+    if (!ref.current) return;
+    try {
+      const canvas = await html2canvas(ref.current);
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const ratio = pageWidth / canvas.width;
+      pdf.addImage(imgData, 'PNG', 0, 20, canvas.width * ratio, canvas.height * ratio);
+      pdf.save(filename);
+      setToastMessage('PDF exported successfully');
+      setShowToast(true);
+    } catch (error) {
+      setToastMessage('Failed to export PDF');
+      setShowToast(true);
+    }
+  };
+
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-US', {
       month: 'short',
@@ -165,12 +264,135 @@ export default function ReportsPage() {
           </p>
         </div>
 
+        {/* AI Report Section */}
+        <Card className="p-6 bg-gradient-to-br from-primary/5 to-accent-periwinkle/10 border-primary/20">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI Health Summary
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                Get an instant AI-generated overview of your health data
+              </p>
+            </div>
+            <Button
+              onClick={handleGenerateAIReport}
+              disabled={aiReportLoading}
+              className="h-11 min-w-[44px]"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              {aiReportLoading ? 'Generating...' : 'Generate AI Summary'}
+            </Button>
+          </div>
+
+          {aiError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="text-red-600 text-sm">{aiError}</p>
+            </div>
+          )}
+
+          {aiReport && (
+            <div className="space-y-3">
+              <div ref={aiReportPdfRef} className="bg-white rounded-lg p-6 border border-border">
+                <div className="prose prose-sm max-w-none">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                    {aiReport}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => exportToPDF(aiReportPdfRef, `horizon-health-summary-${Date.now()}.pdf`)}
+                className="w-full h-11 min-w-[44px]"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export PDF
+              </Button>
+            </div>
+          )}
+
+          {!aiReport && !aiError && !aiReportLoading && (
+            <div className="text-center py-8 text-muted-foreground">
+              <Sparkles className="h-12 w-12 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">Click the button above to generate your AI health summary</p>
+            </div>
+          )}
+        </Card>
+
+        {/* Custom AI Prompts Section */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            AI Medical Assistant
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Paste doctor notes, prescription names, or medical terms to get AI assistance
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Choose what you need help with
+              </label>
+              <select
+                value={promptMode}
+                onChange={(e) => setPromptMode(e.target.value as PromptKey)}
+                className="w-full px-3 py-2 border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+              >
+                <option value="translate">Translate to plain English</option>
+                <option value="questions">3 doctor questions</option>
+                <option value="sidefx">Side effects summary</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Your text
+              </label>
+              <textarea
+                className="w-full border border-input rounded-lg p-3 h-40 focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                placeholder="Paste the doctor note / term / prescription name…"
+                value={promptInput}
+                onChange={(e) => setPromptInput(e.target.value)}
+              />
+            </div>
+
+            <Button
+              onClick={handleRunCustomPrompt}
+              disabled={promptLoading || !promptInput.trim()}
+              className="w-full h-11 min-w-[44px]"
+            >
+              {promptLoading ? 'Generating…' : 'Generate AI Report'}
+            </Button>
+
+            {promptOutput && (
+              <div className="space-y-3">
+                <div ref={customPromptPdfRef} className="mt-4 rounded-xl border border-border p-4 bg-white">
+                  <h3 className="font-semibold mb-2 text-foreground">Result</h3>
+                  <pre className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                    {promptOutput}
+                  </pre>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => exportToPDF(customPromptPdfRef, `horizon-ai-report-${Date.now()}.pdf`)}
+                  className="w-full h-11 min-w-[44px]"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export PDF
+                </Button>
+              </div>
+            )}
+          </div>
+        </Card>
+
         {/* Generate Section */}
         <Card className="p-6">
-          <h2 className="text-xl font-semibold text-foreground mb-4">Generate New Report</h2>
+          <h2 className="text-xl font-semibold text-foreground mb-4">Generate PDF Report</h2>
 
           {/* Date Range Picker */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">Start Date</label>
               <input
@@ -201,11 +423,16 @@ export default function ReportsPage() {
             )}
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <p className="text-sm text-muted-foreground">
               Report will include: conditions, symptoms, vitals, activities, medications, and journal notes
             </p>
-            <Button onClick={handleGenerateReport} disabled={isGenerating} size="lg">
+            <Button
+              onClick={handleGenerateReport}
+              disabled={isGenerating}
+              size="lg"
+              className="h-11 min-w-[44px]"
+            >
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -253,13 +480,14 @@ export default function ReportsPage() {
                         variant="outline"
                         size="sm"
                         onClick={() => window.open(report.downloadUrl, '_blank')}
+                        className="h-11 min-w-[44px]"
                       >
                         <Download className="h-4 w-4 mr-1" />
                         Download
                       </Button>
                       <button
                         onClick={() => handleDeleteReport(report.id)}
-                        className="p-2 text-muted-foreground hover:text-danger transition-colors"
+                        className="p-2 h-11 w-11 min-w-[44px] text-muted-foreground hover:text-danger transition-colors"
                         title="Delete report"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -271,6 +499,9 @@ export default function ReportsPage() {
             </div>
           )}
         </div>
+
+        {/* Toast */}
+        <Toast message={toastMessage} isVisible={showToast} onClose={() => setShowToast(false)} />
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import posthog from 'posthog-js';
+import * as Sentry from '@sentry/react';
 
 // Initialize PostHog
 const POSTHOG_KEY = import.meta.env.VITE_POSTHOG_KEY;
@@ -19,7 +20,22 @@ export function initAnalytics() {
 }
 
 export function trackEvent(eventName: string, properties?: Record<string, any>) {
-  if (!initialized) return;
+  // Add Sentry breadcrumb for all events
+  Sentry.addBreadcrumb({
+    category: 'analytics',
+    message: eventName,
+    level: 'info',
+    data: properties,
+  });
+
+  if (!initialized) {
+    // Log in development even if PostHog not configured
+    if (import.meta.env.DEV) {
+      console.log('[Analytics]', eventName, properties);
+    }
+    return;
+  }
+
   posthog.capture(eventName, properties);
 }
 
@@ -55,6 +71,31 @@ export const analytics = {
 
   journalEntryCreated: () => {
     trackEvent('journal_entry_created');
+  },
+
+  // New events requested
+  analyzeSymptoms: () => {
+    trackEvent('analyze_symptoms');
+  },
+
+  generateReport: (reportType: string) => {
+    trackEvent('generate_report', { reportType });
+  },
+
+  exportPDF: (documentType: string) => {
+    trackEvent('export_pdf', { documentType });
+  },
+
+  changePassword: () => {
+    trackEvent('change_password');
+  },
+
+  exportData: () => {
+    trackEvent('export_data');
+  },
+
+  deleteAccount: () => {
+    trackEvent('delete_account');
   },
 };
 

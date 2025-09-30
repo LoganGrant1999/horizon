@@ -8,7 +8,6 @@ import {
   Map,
   Settings,
   LogOut,
-  Sunrise,
   ChevronDown,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -40,7 +39,7 @@ export function AppShell() {
         {/* Logo */}
         <div className="p-6 border-b border-border">
           <Link to="/app/dashboard" className="flex items-center gap-2">
-            <Sunrise className="h-8 w-8 text-primary" />
+            <img src="/logo.png" alt="Horizon" className="h-8 w-8" />
             <span className="text-xl font-serif font-bold text-foreground">Horizon</span>
           </Link>
         </div>
