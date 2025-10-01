@@ -12,7 +12,6 @@ export interface OnboardingData {
   importDemo: boolean;
   conditions: Array<{
     name: string;
-    bodyRegion: string;
     onsetDate?: string;
   }>;
   medicalHistory: string;

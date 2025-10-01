@@ -23,40 +23,20 @@ const COMMON_CONDITIONS = [
   'Atrial Fibrillation',
 ];
 
-const BODY_REGIONS = [
-  'HEAD',
-  'NECK',
-  'CHEST',
-  'HEART',
-  'LUNGS',
-  'ABDOMEN',
-  'LOW_BACK',
-  'UPPER_BACK',
-  'LEFT_ARM',
-  'RIGHT_ARM',
-  'LEFT_LEG',
-  'RIGHT_LEG',
-  'SKIN',
-  'OTHER',
-];
-
 export default function ConditionsStep({ data, updateData }: ConditionsStepProps) {
   const [customCondition, setCustomCondition] = useState('');
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const addCondition = (name: string) => {
     if (!name.trim()) return;
 
     const newCondition = {
       name: name.trim(),
-      bodyRegion: 'OTHER',
       onsetDate: undefined,
     };
 
     updateData({
       conditions: [...data.conditions, newCondition],
     });
-    setEditingIndex(data.conditions.length);
     setCustomCondition('');
   };
 
@@ -64,15 +44,6 @@ export default function ConditionsStep({ data, updateData }: ConditionsStepProps
     updateData({
       conditions: data.conditions.filter((_, i) => i !== index),
     });
-    if (editingIndex === index) {
-      setEditingIndex(null);
-    }
-  };
-
-  const updateCondition = (index: number, updates: Partial<OnboardingData['conditions'][0]>) => {
-    const updated = [...data.conditions];
-    updated[index] = { ...updated[index], ...updates };
-    updateData({ conditions: updated });
   };
 
   const isSelected = (name: string) =>
@@ -162,58 +133,9 @@ export default function ConditionsStep({ data, updateData }: ConditionsStepProps
                 </button>
               </div>
 
-              {editingIndex === index && (
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      Body region
-                    </label>
-                    <select
-                      value={condition.bodyRegion}
-                      onChange={(e) => updateCondition(index, { bodyRegion: e.target.value })}
-                      className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    >
-                      {BODY_REGIONS.map((region) => (
-                        <option key={region} value={region}>
-                          {region.replace(/_/g, ' ')}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-muted-foreground mb-1">
-                      Onset date (optional)
-                    </label>
-                    <input
-                      type="date"
-                      value={condition.onsetDate || ''}
-                      onChange={(e) => updateCondition(index, { onsetDate: e.target.value })}
-                      className="w-full px-3 py-2 border border-input rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    />
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditingIndex(null)}
-                    className="w-full"
-                  >
-                    Done
-                  </Button>
-                </div>
-              )}
-
-              {editingIndex !== index && (
-                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                  <span>{condition.bodyRegion.replace(/_/g, ' ')}</span>
-                  {condition.onsetDate && <span>Since {condition.onsetDate}</span>}
-                  <button
-                    onClick={() => setEditingIndex(index)}
-                    className="text-primary hover:underline ml-auto"
-                  >
-                    Edit details
-                  </button>
+              {condition.onsetDate && (
+                <div className="text-xs text-muted-foreground">
+                  Since {new Date(condition.onsetDate).toLocaleDateString()}
                 </div>
               )}
             </div>

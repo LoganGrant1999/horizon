@@ -5,7 +5,7 @@ import { relations } from 'drizzle-orm';
 export const bodyRegionEnum = pgEnum('BodyRegion', [
   'HEAD', 'NECK', 'CHEST', 'HEART', 'LUNGS', 'ABDOMEN',
   'LOW_BACK', 'UPPER_BACK', 'LEFT_ARM', 'RIGHT_ARM',
-  'LEFT_LEG', 'RIGHT_LEG', 'SKIN', 'OTHER'
+  'LEFT_LEG', 'RIGHT_LEG', 'SKIN', 'MENTAL_HEALTH', 'OTHER'
 ]);
 
 export const conditionStatusEnum = pgEnum('ConditionStatus', ['ACTIVE', 'RESOLVED']);

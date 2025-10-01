@@ -34,7 +34,7 @@ async function authenticate(request: any, reply: any) {
 
 type BodyRegion = 'HEAD' | 'NECK' | 'CHEST' | 'HEART' | 'LUNGS' | 'ABDOMEN' |
   'LOW_BACK' | 'UPPER_BACK' | 'LEFT_ARM' | 'RIGHT_ARM' |
-  'LEFT_LEG' | 'RIGHT_LEG' | 'SKIN' | 'OTHER';
+  'LEFT_LEG' | 'RIGHT_LEG' | 'SKIN' | 'MENTAL_HEALTH' | 'OTHER';
 
 const REGION_DISPLAY_NAMES: Record<BodyRegion, string> = {
   HEAD: 'Head',
@@ -50,54 +50,40 @@ const REGION_DISPLAY_NAMES: Record<BodyRegion, string> = {
   LEFT_LEG: 'Left Leg',
   RIGHT_LEG: 'Right Leg',
   SKIN: 'Skin',
+  MENTAL_HEALTH: 'Mental Health',
   OTHER: 'Other',
 };
 
 const ALL_REGIONS: BodyRegion[] = [
   'HEAD', 'NECK', 'CHEST', 'HEART', 'LUNGS', 'ABDOMEN',
   'LOW_BACK', 'UPPER_BACK', 'LEFT_ARM', 'RIGHT_ARM',
-  'LEFT_LEG', 'RIGHT_LEG', 'SKIN', 'OTHER'
+  'LEFT_LEG', 'RIGHT_LEG', 'SKIN', 'MENTAL_HEALTH', 'OTHER'
 ];
 
 export const regionsRoutes: FastifyPluginAsync = async (fastify) => {
-  // Get summary of all regions with symptom counts (last 30 days)
+  // Get summary of all regions with chronic conditions
   fastify.get('/summary', async (request, reply) => {
     const user = await authenticate(request, reply);
     if (!user) return;
 
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-    // Get symptom counts per region
-    const symptomCounts = await db
-      .select({
-        bodyRegion: symptomEntries.bodyRegion,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(symptomEntries)
-      .where(
-        and(
-          eq(symptomEntries.userId, user.id),
-          gte(symptomEntries.createdAt, thirtyDaysAgo)
-        )
-      )
-      .groupBy(symptomEntries.bodyRegion);
-
-    // Get conditions per region
+    // Get active/chronic conditions per region
     const allConditions = await db
       .select({
         bodyRegion: conditions.bodyRegion,
         name: conditions.name,
+        status: conditions.status,
       })
       .from(conditions)
       .where(eq(conditions.userId, user.id))
       .orderBy(desc(conditions.createdAt));
 
     const summary = ALL_REGIONS.map((region) => {
-      const count = symptomCounts.find((s) => s.bodyRegion === region)?.count || 0;
       const regionConditions = allConditions
         .filter((c) => c.bodyRegion === region)
         .map((c) => c.name);
+
+      // Count is the number of chronic conditions in this region
+      const count = regionConditions.length;
 
       return {
         region,

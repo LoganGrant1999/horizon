@@ -6,15 +6,15 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-accent-peach/10 to-accent-periwinkle/10">
       {/* Header */}
-      <header className="absolute top-0 left-0 right-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-border shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <img src="/logo.png" alt="Horizon" className="h-8 w-8" />
               <span className="text-xl font-serif font-bold text-foreground">Horizon</span>
             </div>
             <Link to="/login">
-              <Button variant="ghost">Sign In</Button>
+              <Button variant="outline">Sign In</Button>
             </Link>
           </div>
         </div>

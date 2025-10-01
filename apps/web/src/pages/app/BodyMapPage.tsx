@@ -38,6 +38,7 @@ const REGION_TO_BODY_PART: Record<string, BodyPart> = {
   LEFT_FOOT: 'left_foot',
   RIGHT_FOOT: 'right_foot',
   SKIN: 'chest',
+  MENTAL_HEALTH: 'head', // Mental health conditions highlight the head
   OTHER: 'stomach',
 };
 
@@ -151,7 +152,16 @@ export default function BodyMapPage() {
     .reduce((acc, label) => {
       const existing = acc.find((l) => l.part === label.part);
       if (existing) {
-        existing.conditions.push(...label.conditions);
+        // Update title to show multiple regions
+        existing.title = existing.title.includes('/')
+          ? existing.title
+          : `${existing.title} / ${label.title}`;
+        // Add only unique conditions
+        label.conditions.forEach(condition => {
+          if (!existing.conditions.includes(condition)) {
+            existing.conditions.push(condition);
+          }
+        });
       } else {
         acc.push(label);
       }

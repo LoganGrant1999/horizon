@@ -309,19 +309,78 @@ export const onboardingRoutes: FastifyPluginAsync = async (fastify) => {
 
       fastify.log.info(`Demo data imported for user ${user.id}`);
     } else {
-      // Create user-provided conditions
+      // Create user-provided conditions with AI-mapped body regions
       if (body.conditions.length > 0) {
-        await db.insert(conditions).values(
-          body.conditions.map((condition) => ({
-            id: crypto.randomUUID(),
-            userId: user.id,
-            name: condition.name,
-            bodyRegion: condition.bodyRegion as any,
-            onsetDate: condition.onsetDate ? new Date(condition.onsetDate) : null,
-            status: 'ACTIVE' as const,
-            updatedAt: new Date(),
-          }))
+        // Use AI to map each condition to a body region
+        const { getOpenAI } = await import('../lib/openai');
+        const openai = getOpenAI();
+
+        const conditionsWithRegions = await Promise.all(
+          body.conditions.map(async (condition) => {
+            try {
+              const completion = await openai.chat.completions.create({
+                model: 'gpt-4o-mini',
+                messages: [
+                  {
+                    role: 'system',
+                    content: `You are a medical condition classifier. Your job is to map medical condition names to the PRIMARY body region they affect.
+
+Available body regions:
+- HEAD: conditions affecting the head, brain, eyes, ears, nose, face (physical conditions only)
+- NECK: neck conditions
+- CHEST: general chest conditions (not heart or lung specific)
+- HEART: cardiovascular conditions, heart disease
+- LUNGS: respiratory conditions, lung disease
+- ABDOMEN: digestive conditions, stomach, intestines, liver
+- LOW_BACK: lower back conditions
+- UPPER_BACK: upper back and shoulder conditions
+- LEFT_ARM: left arm conditions
+- RIGHT_ARM: right arm conditions
+- LEFT_LEG: left leg conditions
+- RIGHT_LEG: right leg conditions
+- SKIN: skin conditions affecting entire body
+- MENTAL_HEALTH: mental health conditions including depression, anxiety, bipolar disorder, PTSD, OCD, schizophrenia, eating disorders, ADHD, autism spectrum disorders, personality disorders, substance use disorders, and other psychiatric conditions
+- OTHER: systemic conditions, autoimmune diseases, conditions that don't fit above categories
+
+Respond with ONLY the body region code (e.g., "HEART", "HEAD", "MENTAL_HEALTH", etc.). No explanation.`,
+                  },
+                  {
+                    role: 'user',
+                    content: condition.name,
+                  },
+                ],
+                temperature: 0.1,
+                max_tokens: 20,
+              });
+
+              const region = completion.choices[0]?.message?.content?.trim() || 'OTHER';
+
+              return {
+                id: crypto.randomUUID(),
+                userId: user.id,
+                name: condition.name,
+                bodyRegion: region as any,
+                onsetDate: condition.onsetDate ? new Date(condition.onsetDate) : null,
+                status: 'ACTIVE' as const,
+                updatedAt: new Date(),
+              };
+            } catch (error) {
+              fastify.log.error(`Failed to map condition ${condition.name}:`, error);
+              // Fallback to OTHER if AI fails
+              return {
+                id: crypto.randomUUID(),
+                userId: user.id,
+                name: condition.name,
+                bodyRegion: 'OTHER' as any,
+                onsetDate: condition.onsetDate ? new Date(condition.onsetDate) : null,
+                status: 'ACTIVE' as const,
+                updatedAt: new Date(),
+              };
+            }
+          })
         );
+
+        await db.insert(conditions).values(conditionsWithRegions);
       }
 
       // Create medications

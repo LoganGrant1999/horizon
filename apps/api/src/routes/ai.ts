@@ -126,37 +126,40 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
       const BODY_REGIONS = ['HEAD', 'NECK', 'CHEST', 'HEART', 'LUNGS', 'ABDOMEN',
         'LOW_BACK', 'UPPER_BACK', 'LEFT_ARM', 'RIGHT_ARM',
-        'LEFT_LEG', 'RIGHT_LEG', 'SKIN', 'OTHER'];
+        'LEFT_LEG', 'RIGHT_LEG', 'SKIN', 'MENTAL_HEALTH', 'OTHER'];
       const SYMPTOM_CATEGORIES = ['SYMPTOM', 'VITAL', 'ACTIVITY', 'NOTE'];
 
       // Create SymptomEntry rows for each extracted item
-      const createdSymptoms = await db.insert(symptomEntries).values(
-        items.map((item: any) => {
-          // Validate and normalize the extracted data
-          const category = SYMPTOM_CATEGORIES.includes(item.category)
-            ? item.category
-            : 'SYMPTOM';
+      let createdSymptoms = [];
+      if (items.length > 0) {
+        createdSymptoms = await db.insert(symptomEntries).values(
+          items.map((item: any) => {
+            // Validate and normalize the extracted data
+            const category = SYMPTOM_CATEGORIES.includes(item.category)
+              ? item.category
+              : 'SYMPTOM';
 
-          const bodyRegion = BODY_REGIONS.includes(item.bodyRegion)
-            ? item.bodyRegion
-            : 'OTHER';
+            const bodyRegion = BODY_REGIONS.includes(item.bodyRegion)
+              ? item.bodyRegion
+              : 'OTHER';
 
-          return {
-            id: crypto.randomUUID(),
-            userId: user.id,
-            title: item.title || 'Untitled',
-            bodyRegion: bodyRegion as any,
-            category: category as any,
-            severity: item.severity || null,
-            tags: item.tags || [],
-            vitalsJson: item.vitalsJson || null,
-            activityJson: item.activityJson || null,
-            notes: null,
-            startedAt: entry.createdAt,
-            updatedAt: new Date(),
-          };
-        })
-      ).returning();
+            return {
+              id: crypto.randomUUID(),
+              userId: user.id,
+              title: item.title || 'Untitled',
+              bodyRegion: bodyRegion as any,
+              category: category as any,
+              severity: item.severity || null,
+              tags: item.tags || [],
+              vitalsJson: item.vitalsJson || null,
+              activityJson: item.activityJson || null,
+              notes: null,
+              startedAt: entry.createdAt,
+              updatedAt: new Date(),
+            };
+          })
+        ).returning();
+      }
 
       // Update journal entry status
       const [updatedEntry] = await db
@@ -243,6 +246,64 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
       fastify.log.error('Report generation failed:', error);
       return reply.code(500).send({
         error: 'Report generation failed',
+        message: error.message || 'Unknown error',
+      });
+    }
+  });
+
+  // Map condition names to body regions
+  fastify.post('/map-condition-region', async (request, reply) => {
+    const user = await authenticate(request, reply);
+    if (!user) return;
+
+    const body = z.object({
+      conditionName: z.string().min(1),
+    }).parse(request.body);
+
+    try {
+      const openai = getOpenAI();
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a medical condition classifier. Your job is to map medical condition names to the PRIMARY body region they affect.
+
+Available body regions:
+- HEAD: conditions affecting the head, brain, eyes, ears, nose, face (physical conditions only)
+- NECK: neck conditions
+- CHEST: general chest conditions (not heart or lung specific)
+- HEART: cardiovascular conditions, heart disease
+- LUNGS: respiratory conditions, lung disease
+- ABDOMEN: digestive conditions, stomach, intestines, liver
+- LOW_BACK: lower back conditions
+- UPPER_BACK: upper back and shoulder conditions
+- LEFT_ARM: left arm conditions
+- RIGHT_ARM: right arm conditions
+- LEFT_LEG: left leg conditions
+- RIGHT_LEG: right leg conditions
+- SKIN: skin conditions affecting entire body
+- MENTAL_HEALTH: mental health conditions including depression, anxiety, bipolar disorder, PTSD, OCD, schizophrenia, eating disorders, ADHD, autism spectrum disorders, personality disorders, substance use disorders, and other psychiatric conditions
+- OTHER: systemic conditions, autoimmune diseases, conditions that don't fit above categories
+
+Respond with ONLY the body region code (e.g., "HEART", "HEAD", "MENTAL_HEALTH", etc.). No explanation.`,
+          },
+          {
+            role: 'user',
+            content: body.conditionName,
+          },
+        ],
+        temperature: 0.1,
+        max_tokens: 20,
+      });
+
+      const region = completion.choices[0]?.message?.content?.trim() || 'OTHER';
+
+      return { region };
+    } catch (error: any) {
+      fastify.log.error('Condition region mapping failed:', error);
+      return reply.code(500).send({
+        error: 'Region mapping failed',
         message: error.message || 'Unknown error',
       });
     }
